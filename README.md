@@ -23,7 +23,7 @@ The two last datasets come from the [KDD Cup 2010 EDM Challenge](http://pslcdata
 
 To preprocess each of the datasets:
 
-```python
+```
 python prepare_data.py --dataset <dataset codename> --min_interactions 10 --remove_nan_skills
 ```
 
@@ -31,7 +31,7 @@ python prepare_data.py --dataset <dataset codename> --min_interactions 10 --remo
 
 To encode sparse features on which the ML models will train, `encode.py` is used. The preprocessed dataset is automatically selected. For instance, DAS3H is "users, items, skills, wins, attempts, tw_kc":
 
-```python
+```
 python encode.py --dataset <dataset codename> --users --items --skills --wins --attempts --tw_kc
 ```
 
@@ -47,7 +47,7 @@ python encode.py --dataset <dataset codename> --users --items --skills --wins --
 
 Code for running the experiments is in `das3h.py`. For instance, for performing cross-validation for DAS3H with embedding dimension $d=5$, on ASSISTments12:
 
-```python
+```
 python das3h.py data/assistments12/X-uiswat1.npz --dataset assistments12 --d 5 --users --items --skills --wins --attempts --tw_kc
 ```
 
