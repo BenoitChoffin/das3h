@@ -45,7 +45,7 @@ python encode.py --dataset <dataset codename> --users --items --skills --wins --
 
 #### Running the models
 
-Code for running the experiments is in `das3h.py`. For instance, for performing cross-validation for DAS3H with embedding dimension $d=5$, on ASSISTments12:
+Code for running the experiments is in `das3h.py`. For instance, for performing cross-validation for DAS3H with embedding dimension *d*=5, on ASSISTments12:
 
 ```
 python das3h.py data/assistments12/X-uiswat1.npz --dataset assistments12 --d 5 --users --items --skills --wins --attempts --tw_kc
