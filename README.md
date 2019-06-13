@@ -1,11 +1,57 @@
 ## DAS3H
 
-This repository will contain the Python code used for the experiments from our EDM 2019 paper: [_DAS3H: Modeling Student Learning and Forgetting for
+This repository contains the Python code used for the experiments from our EDM 2019 paper: [_DAS3H: Modeling Student Learning and Forgetting for
 Optimally Scheduling Distributed Practice of Skills_](https://arxiv.org/abs/1905.06873). Authors: [Benoît Choffin](https://github.com/BenoitChoffin), [Fabrice Popineau](https://github.com/fpopineau), Yolaine Bourda, and [Jill-Jênn Vie](https://github.com/jilljenn).
 
-Code is currently being cleaned up and will be made public shortly on this repository. Stay tuned.
+Code for this repository is partly borrowed from [jilljenn](http://jill-jenn.net/)'s [ktm repository](https://github.com/jilljenn/ktm).
 
-#### Complete metrics tables
+It is recommended to use a virtual environment for running our experiments. In order to use embedding dimensions *d* > 0, [libfm](https://github.com/srendle/libfm) needs to be installed as well:
+
+```
+git clone https://github.com/srendle/libfm
+cd libfm && git reset --hard 91f8504a15120ef6815d6e10cc7dee42eebaab0f && make all
+```
+
+#### Preparing data
+
+Three open access datasets were used for our experiments:
+* [ASSISTments 2012-2013](https://sites.google.com/site/assistmentsdata/home/2012-13-school-data-with-affect) (assistments12)
+* Bridge to Algebra 2006-2007 (bridge_algebra06)
+* Algebra I 2005-2006 (algebra05)
+
+The two last datasets come from the [KDD Cup 2010 EDM Challenge](http://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp). Datasets need to be downloaded and put inside each corresponding data folder in data. The main dataset (`train` for KDD Cup) should each time be renamed "data" + corresponding extension name.
+
+To preprocess each of the datasets:
+
+```python
+python prepare_data.py --dataset <dataset codename> --min_interactions 10 --remove_nan_skills
+```
+
+#### Encoding sparse features
+
+To encode sparse features on which the ML models will train, `encode.py` is used. The preprocessed dataset is automatically selected. For instance, DAS3H is "users, items, skills, wins, attempts, tw_kc":
+
+```python
+python encode.py --dataset <dataset codename> --users --items --skills --wins --attempts --tw_kc
+```
+
+|   | users | items | skills | wins | fails | attempts | tw_kc | tw_items |
+|:-:|:-----:|:-----:|:------:|:----:|:-----:|:--------:|:-----:|:--------:|
+| DAS3H | x | x | x | x | | x | x | |
+| DASH | x | x | | x | | x | | x |
+| IRT/MIRT | x | x | | | | | | |
+| PFA | | | x | x | x | | | |
+| AFM | | | x | | | x | | |
+
+#### Running the models
+
+Code for running the experiments is in `das3h.py`. For instance, for performing cross-validation for DAS3H with embedding dimension $d=5$, on ASSISTments12:
+
+```python
+python das3h.py data/assistments12/X-uiswat1.npz --dataset assistments12 --d 5 --users --items --skills --wins --attempts --tw_kc
+```
+
+## Appendix: complete metrics tables
 Algebra 2005-2006 (PSLC DataShop) dataset:
 
 | model | dim | AUC | ACC | NLL |
