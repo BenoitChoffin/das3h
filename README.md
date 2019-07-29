@@ -43,6 +43,8 @@ python encode.py --dataset <dataset codename> --users --items --skills --wins --
 | PFA | | | x | x | x | | | |
 | AFM | | | x | | | x | | |
 
+A faster script for encoding DAS3H time windows is available [here](https://github.com/jilljenn/ktm/blob/master/encode_tw.py#L115).
+
 #### Running the models
 
 Code for running the experiments is in `das3h.py`. For instance, for performing cross-validation for DAS3H with embedding dimension *d*=5, on ASSISTments12:
