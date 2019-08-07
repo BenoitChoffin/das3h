@@ -27,7 +27,8 @@ def prepare_assistments12(min_interactions_per_user, remove_nan_skills):
 	df["timestamp"] = df["start_time"]
 	df["timestamp"] = pd.to_datetime(df["timestamp"])
 	df["timestamp"] = df["timestamp"] - df["timestamp"].min()
-	df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds() / (3600*24))
+	#df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds() / (3600*24))
+	df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds()).astype(np.int64)
 	df.sort_values(by="timestamp", inplace=True)
 	df.reset_index(inplace=True, drop=True)
 	df = df.groupby("user_id").filter(lambda x: len(x) >= min_interactions_per_user)
@@ -52,6 +53,7 @@ def prepare_assistments12(min_interactions_per_user, remove_nan_skills):
 
 	df = df[['user_id', 'item_id', 'timestamp', 'correct', "inter_id"]]
 	df = df[df.correct.isin([0,1])] # Remove potential continuous outcomes
+	df['correct'] = df['correct'].astype(np.int32) # Cast outcome as int32
 
 	# Save data
 	sparse.save_npz("data/assistments12/q_mat.npz", sparse.csr_matrix(Q_mat))
@@ -85,7 +87,8 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name,
 	})[['user_id', 'pb_id', 'step_id' ,'correct', 'timestamp', 'kc_id']]
 	df["timestamp"] = pd.to_datetime(df["timestamp"])
 	df["timestamp"] = df["timestamp"] - df["timestamp"].min()
-	df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds() / (3600*24))
+	#df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds() / (3600*24))
+	df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds()).astype(np.int64)
 	df.sort_values(by="timestamp",inplace=True)
 	df.reset_index(inplace=True,drop=True)
 	df = df.groupby("user_id").filter(lambda x: len(x) >= min_interactions_per_user)
@@ -132,6 +135,7 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name,
 
 	df = df[['user_id', 'item_id', 'timestamp', 'correct', 'inter_id']]
 	df = df[df.correct.isin([0,1])] # Remove potential continuous outcomes
+	df['correct'] = df['correct'].astype(np.int32) # Cast outcome as int32
 	
 	# Save data
 	sparse.save_npz(folder_path + "/q_mat.npz", sparse.csr_matrix(Q_mat))
