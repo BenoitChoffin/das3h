@@ -20,19 +20,9 @@ parser.add_argument('--tw_kc', type=bool, nargs='?', const=True, default=False)
 parser.add_argument('--tw_items', type=bool, nargs='?', const=True, default=False)
 options = parser.parse_args()
 
-os.chdir(os.path.join('data', options.dataset))
-all_features = ['users', 'items', 'skills', 'wins', 'fails', 'attempts']
-active_features = [features for features in all_features if vars(options)[features]]
-features_suffix = ''.join([features[0] for features in active_features])
-if vars(options)["tw_kc"]:
-	features_suffix += 't1'
-elif vars(options)["tw_items"]:
-	features_suffix += 't2'
-#LIST_OF_BOUNDARIES = [1/24, 1, 7, 30, np.inf]
 NB_OF_TIME_WINDOWS = 5
 
-
-def df_to_sparse(df, Q_mat, active_features, verbose=True):
+def df_to_sparse(df, Q_mat, active_features, tw=None, verbose=True):
 	"""Build sparse features dataset from dense dataset and q-matrix.
 
 	Arguments:
@@ -61,16 +51,16 @@ def df_to_sparse(df, Q_mat, active_features, verbose=True):
 	if 'skills' in active_features:
 		X["skills"] = sparse.csr_matrix(np.empty((0, Q_mat.shape[1])))
 	if 'attempts' in active_features:
-		if options.tw_kc:
+		if tw == "tw_kc":
 			X["attempts"] = sparse.csr_matrix(np.empty((0, Q_mat.shape[1]*NB_OF_TIME_WINDOWS)))
-		elif options.tw_items:
+		elif tw == "tw_items":
 			X["attempts"] = sparse.csr_matrix(np.empty((0, NB_OF_TIME_WINDOWS)))
 		else:
 			X["attempts"] = sparse.csr_matrix(np.empty((0, Q_mat.shape[1])))
 	if 'wins' in active_features:
-		if options.tw_kc:
+		if tw == "tw_kc":
 			X["wins"] = sparse.csr_matrix(np.empty((0, Q_mat.shape[1]*NB_OF_TIME_WINDOWS)))
-		elif options.tw_items:
+		elif tw == "tw_items":
 			X["wins"] = sparse.csr_matrix(np.empty((0, NB_OF_TIME_WINDOWS)))
 		else:
 			X["wins"] = sparse.csr_matrix(np.empty((0, Q_mat.shape[1])))
@@ -91,7 +81,7 @@ def df_to_sparse(df, Q_mat, active_features, verbose=True):
 			X['skills'] = sparse.vstack([X["skills"],sparse.csr_matrix(skills_temp)])
 		if "attempts" in active_features:
 			skills_temp = Q_mat[df_stud[:,1].astype(int)].copy()
-			if options.tw_kc:
+			if tw == "tw_kc":
 				attempts = np.zeros((df_stud.shape[0], NB_OF_TIME_WINDOWS*Q_mat.shape[1]))
 				for l, (item_id, t) in enumerate(zip(df_stud[:,1], df_stud[:,2])):
 					for skill_id in dict_q_mat[item_id]:
@@ -108,7 +98,7 @@ def df_to_sparse(df, Q_mat, active_features, verbose=True):
 				#	skills = Q_mat[df_stud[:,1].astype(int)]
 				#	attempts_temp = np.log(1+np.multiply(attempts_temp,skills)) # only keep KCs involved
 				#	attempts = np.hstack((attempts,attempts_temp))
-			elif options.tw_items:
+			elif tw == "tw_items":
 				attempts = np.zeros((df_stud.shape[0], NB_OF_TIME_WINDOWS))
 				for l, (item_id, t) in enumerate(zip(df_stud[:,1], df_stud[:,2])):
 					attempts[l] = np.log(1 + np.array(q[stud_id, item_id].get_counters(t)))
@@ -126,7 +116,7 @@ def df_to_sparse(df, Q_mat, active_features, verbose=True):
 			X['attempts'] = sparse.vstack([X['attempts'],sparse.csr_matrix(attempts)])
 		if "wins" in active_features:
 			skills_temp = Q_mat[df_stud[:,1].astype(int)].copy()
-			if options.tw_kc:
+			if tw == "tw_kc":
 				wins = np.zeros((df_stud.shape[0], NB_OF_TIME_WINDOWS*Q_mat.shape[1]))
 				for l, (item_id, t, correct) in enumerate(zip(df_stud[:,1], df_stud[:,2], df_stud[:,3])):
 					for skill_id in dict_q_mat[item_id]:
@@ -144,7 +134,7 @@ def df_to_sparse(df, Q_mat, active_features, verbose=True):
 				#	skills = Q_mat[df_stud[:,1].astype(int)]
 				#	wins_temp = np.log(1+np.multiply(wins_temp,skills)) # only keep KCs involved
 				#	wins = np.hstack((wins,wins_temp))
-			elif options.tw_items:
+			elif tw == "tw_items":
 				wins = np.zeros((df_stud.shape[0], NB_OF_TIME_WINDOWS))
 				for l, (item_id, t, correct) in enumerate(zip(df_stud[:,1], df_stud[:,2], df_stud[:,3])):
 					wins[l] = np.log(1 + np.array(q[stud_id, item_id, "correct"].get_counters(t)))
@@ -182,8 +172,23 @@ def df_to_sparse(df, Q_mat, active_features, verbose=True):
 	sparse_df = sparse.hstack([sparse.csr_matrix(X['df']),sparse.hstack([X[agent] for agent in active_features])]).tocsr()
 	return sparse_df
 
-df = pd.read_csv('preprocessed_data.csv', sep="\t")
-qmat = sparse.load_npz('q_mat.npz').todense()
-X  = df_to_sparse(df, qmat, active_features)
-sparse.save_npz('X-{:s}.npz'.format(features_suffix), X)
+if __name__ == "__main__":
+	os.chdir(os.path.join('data', options.dataset))
+	all_features = ['users', 'items', 'skills', 'wins', 'fails', 'attempts']
+	active_features = [features for features in all_features if vars(options)[features]]
+	features_suffix = ''.join([features[0] for features in active_features])
+	if vars(options)["tw_kc"]:
+		features_suffix += 't1'
+		tw = "tw_kc"
+	elif vars(options)["tw_items"]:
+		features_suffix += 't2'
+		tw = "tw_items"
+	else:
+		tw = None
+	#LIST_OF_BOUNDARIES = [1/24, 1, 7, 30, np.inf]
+
+	df = pd.read_csv('preprocessed_data.csv', sep="\t")
+	qmat = sparse.load_npz('q_mat.npz').toarray()
+	X  = df_to_sparse(df, qmat, active_features, tw=tw)
+	sparse.save_npz('X-{:s}.npz'.format(features_suffix), X)
 
