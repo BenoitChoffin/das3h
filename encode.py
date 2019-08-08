@@ -29,6 +29,7 @@ def df_to_sparse(df, Q_mat, active_features, tw=None, verbose=True):
 	df -- dense dataset, output from one function from prepare_data.py (pandas DataFrame)
 	Q_mat -- q-matrix, output from one function from prepare_data.py (sparse array)
 	active_features -- features used to build the dataset (list of strings)
+	tw -- useful when script is *not* called from command line.
 	verbose -- if True, print information on the encoding process (bool)
 
 	Output:
@@ -87,7 +88,7 @@ def df_to_sparse(df, Q_mat, active_features, tw=None, verbose=True):
 					for skill_id in dict_q_mat[item_id]:
 						attempts[l, skill_id*NB_OF_TIME_WINDOWS:(skill_id+1)*NB_OF_TIME_WINDOWS] = np.log(1 + \
 							np.array(q[stud_id, skill_id].get_counters(t)))
-					q[stud_id, skill_id].push(t)
+						q[stud_id, skill_id].push(t)
 				#attempts = np.empty((df_stud.shape[0],0))
 				#for l in LIST_OF_BOUNDARIES:
 				#	attempts_temp = np.zeros((df_stud.shape[0],Q_mat.shape[1])) # a_sw array
@@ -122,8 +123,8 @@ def df_to_sparse(df, Q_mat, active_features, tw=None, verbose=True):
 					for skill_id in dict_q_mat[item_id]:
 						wins[l, skill_id*NB_OF_TIME_WINDOWS:(skill_id+1)*NB_OF_TIME_WINDOWS] = np.log(1 + \
 							np.array(q[stud_id, skill_id, "correct"].get_counters(t)))
-					if correct:
-						q[stud_id, skill_id, "correct"].push(t)
+						if correct:
+							q[stud_id, skill_id, "correct"].push(t)
 				#wins = np.empty((df_stud.shape[0],0))
 				#for l in LIST_OF_BOUNDARIES:
 				#	wins_temp = np.zeros((df_stud.shape[0],Q_mat.shape[1])) # c_sw array
@@ -159,7 +160,6 @@ def df_to_sparse(df, Q_mat, active_features, tw=None, verbose=True):
 		if verbose:
 			print(X["df"].shape)
 
-	#onehot = OneHotEncoder(categories="auto")
 	onehot = OneHotEncoder()
 	if 'users' in active_features:
 		X['users'] = onehot.fit_transform(X["df"][:,0].reshape(-1,1))

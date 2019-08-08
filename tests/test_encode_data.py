@@ -7,7 +7,7 @@ from encode import df_to_sparse
 class EncodeTestCase(unittest.TestCase):
 	def setUp(self):
 		self.data = pd.read_csv("data/dummy/preprocessed_data.csv")
-		self.q_mat = load_npz("data/dummy/q_mat.npz").todense()
+		self.q_mat = load_npz("data/dummy/q_mat.npz").toarray()
 
 	def test_ui(self):
 		# Test IRT/MIRT encoding
@@ -48,5 +48,21 @@ class EncodeTestCase(unittest.TestCase):
 		self.assertSequenceEqual(X_uiwat2.tolist(), dash_features.tolist(),
 			"Inconsistent DASH features")
 
+	def test_das3h(self):
+		# Test DAS3H encoding
+		X_uiswat1 = df_to_sparse(self.data, self.q_mat, ["users", "items", "skills", "wins", "attempts"],
+			tw="tw_kc").toarray()
+		# Sort array
+		X_uiswat1 = X_uiswat1[X_uiswat1[:,4].argsort(),5:] # Collect only sparse columns
+		# Convert to simple counters to avoid using assertAlmostEqual and floats
+		X_uiswat1[:,-30:] = np.exp(X_uiswat1[:,-30:])-1
+		X_uiswat1 = X_uiswat1.astype(np.int64)
+
+		das3h_features = np.array(pd.read_csv("data/dummy/das3h.csv", sep=';'))
+		self.assertSequenceEqual(X_uiswat1.tolist(), das3h_features.tolist(),
+			"Inconsistent DAS3H features")
+
 if __name__ == '__main__':
 	unittest.main()
+
+
