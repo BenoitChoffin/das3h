@@ -11,6 +11,7 @@ parser.add_argument('--min_interactions', type=int, nargs='?', default=10)
 parser.add_argument('--remove_nan_skills', type=bool, nargs='?', const=True, default=False)
 options = parser.parse_args()
 
+
 def prepare_assistments12(min_interactions_per_user, remove_nan_skills):
 	"""Preprocess ASSISTments 2012-2013 dataset.
 
@@ -23,11 +24,12 @@ def prepare_assistments12(min_interactions_per_user, remove_nan_skills):
 	Q_mat -- corresponding q-matrix (item-skill relationships sparse array)
 	"""
 	df = pd.read_csv("data/assistments12/data.csv")
+	initial_shape = df.shape[0]
+	print("Opened ASSISTments 2012 data. Output: {} samples.".format(initial_shape))
 	
 	df["timestamp"] = df["start_time"]
 	df["timestamp"] = pd.to_datetime(df["timestamp"])
 	df["timestamp"] = df["timestamp"] - df["timestamp"].min()
-	#df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds() / (3600*24))
 	df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds()).astype(np.int64)
 	df.sort_values(by="timestamp", inplace=True)
 	df.reset_index(inplace=True, drop=True)
@@ -54,10 +56,12 @@ def prepare_assistments12(min_interactions_per_user, remove_nan_skills):
 	df = df[['user_id', 'item_id', 'timestamp', 'correct', "inter_id"]]
 	df = df[df.correct.isin([0,1])] # Remove potential continuous outcomes
 	df['correct'] = df['correct'].astype(np.int32) # Cast outcome as int32
+	print("Data preprocessing done. Removed {} interactions. Final output: {} samples.".format((df.shape[0]-initial_shape,
+																								df.shape[0])))
 
 	# Save data
 	sparse.save_npz("data/assistments12/q_mat.npz", sparse.csr_matrix(Q_mat))
-	df.to_csv("data/assistments12/preprocessed_data.csv", sep="\t", index=False)
+	df.to_csv("data/assistments12/preprocessed_data.csv", index=False)
 
 	return df, Q_mat
 
@@ -85,9 +89,10 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name,
 		'First Transaction Time': 'timestamp',
 		'Correct First Attempt': 'correct'
 	})[['user_id', 'pb_id', 'step_id' ,'correct', 'timestamp', 'kc_id']]
+	initial_shape = df.shape[0]
+	print("Opened KDD Cup data. Output: {} samples.".format(initial_shape))
 	df["timestamp"] = pd.to_datetime(df["timestamp"])
 	df["timestamp"] = df["timestamp"] - df["timestamp"].min()
-	#df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds() / (3600*24))
 	df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds()).astype(np.int64)
 	df.sort_values(by="timestamp",inplace=True)
 	df.reset_index(inplace=True,drop=True)
@@ -136,10 +141,58 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name,
 	df = df[['user_id', 'item_id', 'timestamp', 'correct', 'inter_id']]
 	df = df[df.correct.isin([0,1])] # Remove potential continuous outcomes
 	df['correct'] = df['correct'].astype(np.int32) # Cast outcome as int32
+	print("Data preprocessing done. Removed {} interactions. Final output: {} samples.".format((df.shape[0]-initial_shape,
+																								df.shape[0])))
 	
 	# Save data
 	sparse.save_npz(folder_path + "/q_mat.npz", sparse.csr_matrix(Q_mat))
-	df.to_csv(folder_path + "/preprocessed_data.csv", sep="\t", index=False)
+	df.to_csv(folder_path + "/preprocessed_data.csv", index=False)
+
+	return df, Q_mat
+
+def prepare_robomission(min_interactions_per_user):
+	"""Preprocess Robomission dataset.
+
+	Arguments:
+	min_interactions_per_user -- minimum number of interactions per student
+
+	Outputs:
+	df -- preprocessed Robomission dataset (pandas DataFrame)
+	Q_mat -- corresponding q-matrix (item-skill relationships sparse array)
+	"""
+
+	df = pd.read_csv("data/robomission/attempts.csv") # from robomission-2019-12-10
+	initial_shape = df.shape[0]
+	print("Opened Robomission data. Output: {} samples.".format(initial_shape))
+
+	df["correct"] = df["solved"].astype(np.int32)
+	df["timestamp"] = df["start"]
+	df["timestamp"] = pd.to_datetime(df["timestamp"])
+	df["timestamp"] = df["timestamp"] - df["timestamp"].min()
+	df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds()).astype(np.int64)
+	df.sort_values(by="timestamp",inplace=True)
+	df.reset_index(inplace=True,drop=True)
+	df = df.groupby("student").filter(lambda x: len(x) >= options.min_interactions)
+
+	# Change user/item identifiers
+	df["user_id"] = np.unique(df["student"], return_inverse=True)[1]
+	df["item_id"] = np.unique(df["item_id"], return_inverse=True)[1]
+
+	df.reset_index(inplace=True, drop=True) # Add unique identifier of the row
+	df["inter_id"] = df.index
+
+	df = df[['user_id', 'item_id', 'timestamp', 'correct', "inter_id"]]
+	print("Data preprocessing done. Removed {} interactions. Final output: {} samples.".format((df.shape[0]-initial_shape,
+																								df.shape[0])))
+
+	# Sort q-matrix by item id
+	Q_mat = pd.read_csv("data/robomission/qmatrix.csv")
+	Q_mat.sort_values(by="id",inplace=True)
+	Q_mat = Q_mat.values[:,1:]
+
+	# Save data
+	sparse.save_npz("data/robomission/q_mat.npz", sparse.csr_matrix(Q_mat))
+	df.to_csv("data/robomission/preprocessed_data.csv", index=False)
 
 	return df, Q_mat
 
@@ -157,3 +210,5 @@ if __name__ == "__main__":
 									 min_interactions_per_user=options.min_interactions,
 									 kc_col_name="KC(Default)",
 									 remove_nan_skills=options.remove_nan_skills)
+	elif options.dataset == "robomission":
+		df, Q_mat = prepare_robomission(min_interactions_per_user=options.min_interactions

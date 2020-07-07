@@ -16,7 +16,15 @@ __pycache__/
 *.tex.blg
 *.toc
 *.vrb
+*.docx
+*.ipynb
 
 libfm
 venv
 presentation.tex
+limsi.tex
+lip6.tex
+jdse.tex
+lak2020.tex
+TODO.md
+online_models.py
