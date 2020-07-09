@@ -23,6 +23,7 @@ parser.add_argument('--generalization', type=str, nargs='?', default='strongest'
 parser.add_argument('--d', type=int, nargs='?')
 parser.add_argument('--C', type=float, nargs='?', default=1.)
 parser.add_argument('--grid_search', type=bool, nargs='?', const=True, default=False)
+parser.add_argument('--feature_grouping', type=bool, nargs='?', const=True, default=False)
 parser.add_argument('--iter', type=int, nargs='?', default=300)
 parser.add_argument('--users', type=bool, nargs='?', const=True, default=False)
 parser.add_argument('--items', type=bool, nargs='?', const=True, default=False)
@@ -66,6 +67,40 @@ if options.grid_search:
 	dict_of_acc = defaultdict(lambda: [])
 	list_of_elapsed_times = []
 
+# Define array of grouping variables
+if options.feature_grouping:
+	with open(CSV_FOLDER+'/config.json') as json_file:
+		config = json.load(json_file)
+	arr_of_grouping = []
+	group_id = 0
+	if options.users:
+		arr_of_grouping.extend([group_id for i in range(config["n_users"])])
+		group_id += 1
+	if options.items:
+		arr_of_grouping.extend([group_id for i in range(config["n_items"])])
+		group_id += 1
+	if options.skills:
+		arr_of_grouping.extend([group_id for i in range(config["n_skills"])])
+		group_id += 1
+	if options.wins:
+		if options.tw_kc: # we group all win features together, regardless of the tw
+			arr_of_grouping.extend([group_id for i in range(5*config["n_skills"])])
+			group_id += 1
+		else:
+			arr_of_grouping.extend([group_id for i in range(config["n_skills"])])
+			group_id += 1
+	if options.fails: # to change if we allow for fails + tw
+		arr_of_grouping.extend([group_id for i in range(config["n_skills"])])
+		group_id += 1
+	if options.attempts:
+		if options.tw_kc: # we group all attempt features together, regardless of the tw
+			arr_of_grouping.extend([group_id for i in range(5*config["n_skills"])])
+			group_id += 1
+		else:
+			arr_of_grouping.extend([group_id for i in range(config["n_skills"])])
+			group_id += 1
+	arr_of_grouping = np.array(arr_of_grouping)
+
 for i, folds_file in enumerate(sorted(glob.glob(os.path.join(CSV_FOLDER, options.generalization, "folds/test_fold*.npy")))):
 	dataio.prepare_folder(os.path.join(EXPERIMENT_FOLDER, str(i)))
 	dt = time.time()
@@ -82,7 +117,7 @@ for i, folds_file in enumerate(sorted(glob.glob(os.path.join(CSV_FOLDER, options
 			for c in [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 10]:
 				print('fitting for c=...'.format(c))
 				estimators = [
-					('onehot', MaxAbsScaler()),
+					('maxabs', MaxAbsScaler()),
 					('lr', LogisticRegression(solver="saga", max_iter=options.iter, C=c))
 				]
 				pipe = Pipeline(estimators)
@@ -93,19 +128,42 @@ for i, folds_file in enumerate(sorted(glob.glob(os.path.join(CSV_FOLDER, options
 				dict_of_nll[c].append(log_loss(y_test, y_pred_test))
 				dict_of_acc[c].append(accuracy_score(y_test, np.round(y_pred_test)))
 			list_of_elapsed_times.append(np.around(time.time() - dt,3))
+		else:
+			for meta_value in ["no grouping","feature grouping"]:
+				if meta_value == "no grouping":
+					grouping = None
+				else:
+					grouping = arr_of_grouping
+				print('fitting with {}...'.format(meta_value))
+				transformer = MaxAbsScaler().fit(X_train)
+				fm = pywFM.FM(**params)
+				model = fm.run(transformer.transform(X_train), y_train,
+							   transformer.transform(X_test), y_test, meta=grouping)
+				y_pred_test = np.array(model.predictions)
+				dict_of_auc[meta_value].append(roc_auc_score(y_test, y_pred_test))
+				dict_of_rmse[meta_value].append(np.sqrt(mean_squared_error(y_test, y_pred_test)))
+				dict_of_nll[meta_value].append(log_loss(y_test, y_pred_test))
+				dict_of_acc[meta_value].append(accuracy_score(y_test, np.round(y_pred_test)))
+			list_of_elapsed_times.append(np.around(time.time() - dt,3))
 	else:
 		if options.d == 0:
 			print('fitting...')
 			estimators = [
-				('onehot', MaxAbsScaler()),
+				('maxabs', MaxAbsScaler()),
 				('lr', LogisticRegression(solver="saga", max_iter=options.iter, C=options.C))
 			]
 			pipe = Pipeline(estimators)
 			pipe.fit(X_train, y_train)
 			y_pred_test = pipe.predict_proba(X_test)[:, 1]
 		else:
+			if options.feature_grouping:
+				grouping = arr_of_grouping
+			else:
+				grouping = None
+			transformer = MaxAbsScaler().fit(X_train)
 			fm = pywFM.FM(**params)
-			model = fm.run(X_train, y_train, X_test, y_test)
+			model = fm.run(transformer.transform(X_train), y_train,
+						   transformer.transform(X_test), y_test, meta=grouping)
 			y_pred_test = np.array(model.predictions)
 			model.rlog.to_csv(os.path.join(EXPERIMENT_FOLDER, str(i), 'rlog.csv'))
 		
@@ -141,9 +199,9 @@ for i, folds_file in enumerate(sorted(glob.glob(os.path.join(CSV_FOLDER, options
 if options.grid_search:
 	list_of_hp = []
 	list_of_mean_metrics = []
-	for c in dict_of_auc.keys():
-		list_of_hp.append(c)
-		list_of_mean_metrics.append(np.mean(dict_of_auc[c]))
+	for hp in dict_of_auc.keys():
+		list_of_hp.append(hp)
+		list_of_mean_metrics.append(np.mean(dict_of_auc[hp]))
 	optimal_hp = list_of_hp[np.argmax(list_of_mean_metrics)]
 	print("Optimal set of HP found: {}".format(optimal_hp))
 	print("Overall AUC : {}".format(np.around(np.mean(dict_of_auc[optimal_hp]),3)))

@@ -63,7 +63,7 @@ def prepare_assistments12(min_interactions_per_user, remove_nan_skills, verbose)
 	#df["inter_id"] = df.index
 
 	# Build Q-matrix
-	Q_mat = np.zeros((len(df["item_id"].unique()), len(df["skill_id"].unique())))
+	Q_mat = np.zeros((df["item_id"].nunique(), df["skill_id"].nunique()))
 	item_skill = np.array(df[["item_id", "skill_id"]])
 	for i in range(len(item_skill)):
 		Q_mat[item_skill[i,0],item_skill[i,1]] = 1
@@ -84,6 +84,13 @@ def prepare_assistments12(min_interactions_per_user, remove_nan_skills, verbose)
 	# Save data
 	sparse.save_npz("data/assistments12/q_mat.npz", sparse.csr_matrix(Q_mat))
 	df.to_csv("data/assistments12/preprocessed_data.csv", index=False)
+
+	with open('data/assistments12/config.json', 'w') as f:
+		f.write(json.dumps({
+			'n_users': df.user_id.nunique(),
+			'n_items': df.item_id.nunique(),
+			'n_skills': Q_mat.shape[1]
+			}, indent=4))
 
 	return df, Q_mat
 
@@ -182,6 +189,13 @@ def prepare_assistments09(min_interactions_per_user, remove_nan_skills, verbose)
 	# Save data
 	sparse.save_npz("data/assistments09/q_mat.npz", sparse.csr_matrix(Q_mat))
 	df.to_csv("data/assistments09/preprocessed_data.csv", index=False)
+
+	with open('data/assistments09/config.json', 'w') as f:
+		f.write(json.dumps({
+			'n_users': df.user_id.nunique(),
+			'n_items': df.item_id.nunique(),
+			'n_skills': Q_mat.shape[1]
+			}, indent=4))
 
 	return df, Q_mat
 
@@ -292,6 +306,13 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name,
 	sparse.save_npz(folder_path + "/q_mat.npz", sparse.csr_matrix(Q_mat))
 	df.to_csv(folder_path + "/preprocessed_data.csv", index=False)
 
+	with open(folder_path + '/config.json', 'w') as f:
+		f.write(json.dumps({
+			'n_users': df.user_id.nunique(),
+			'n_items': df.item_id.nunique(),
+			'n_skills': Q_mat.shape[1]
+			}, indent=4))
+
 	return df, Q_mat
 
 def prepare_robomission(min_interactions_per_user, verbose):
@@ -351,6 +372,13 @@ def prepare_robomission(min_interactions_per_user, verbose):
 	# Save data
 	sparse.save_npz("data/robomission/q_mat.npz", sparse.csr_matrix(Q_mat))
 	df.to_csv("data/robomission/preprocessed_data.csv", index=False)
+
+	with open('data/robomission/config.json', 'w') as f:
+		f.write(json.dumps({
+			'n_users': df.user_id.nunique(),
+			'n_items': df.item_id.nunique(),
+			'n_skills': Q_mat.shape[1]
+			}, indent=4))
 
 	return df, Q_mat
 
