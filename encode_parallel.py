@@ -219,12 +219,14 @@ def df_to_sparse(df, Q_mat, active_features, tw=None, skip_sucessive=True, log_c
 	q = defaultdict(lambda: OurQueue())  # Prepare counters for time windows
 	wf_counters = defaultdict(lambda: 0)
 	if len(set(active_features).intersection({"skills","attempts","wins","fails"})) > 0:
-		#for stud_id in tqdm(df["user_id"].unique()):
 		res = Parallel(n_jobs=-1,verbose=10)(delayed(encode_single_student)(df, stud_id, Q_mat, active_features, NB_OF_TIME_WINDOWS, q, dict_q_mat, tw,
 			wf_counters, log_counts, X) for stud_id in df["user_id"].unique())
 		for X_stud in res:
 			for key in X_stud.keys():
-				X[key] = sparse.vstack([X[key],X_stud[key]])
+				if key == "df":
+					X[key] = np.vstack((X[key],X_stud[key]))
+				else:
+					X[key] = sparse.vstack([X[key],X_stud[key]]).tocsr()
 		#sparse_df = sparse.vstack([sparse.csr_matrix(X_stud) for X_stud in res]).tocsr() #df["correct"].values.reshape(-1,1)),
 		#		sparse.hstack([X[agent] for agent in active_features])]).tocsr()
 		#sparse_df = sparse_df[np.argsort(sparse_df[:,3])] # sort matrix by original index
@@ -241,13 +243,11 @@ def df_to_sparse(df, Q_mat, active_features, tw=None, skip_sucessive=True, log_c
 			X['items'] = onehot.fit_transform(X["df"][:,1].reshape(-1,1))
 		else:
 			X['items'] = onehot.fit_transform(df["item_id"].values.reshape(-1,1))
-	print(X["skills"])
 	if len(set(active_features).intersection({"skills","attempts","wins","fails"})) > 0:
 		sparse_df = sparse.hstack([sparse.csr_matrix(X['df'])[:,-2].reshape(-1,1),
 			sparse.hstack([X[agent] for agent in active_features])]).tocsr()
-		#print(sparse.csr_matrix(X["df"])[:,-1].toarray().flatten())
 		#sparse_df = sparse_df[np.argsort(sparse.csr_matrix(X["df"])[:,-1])] # sort matrix by original index
-		sparse_df = sparse_df[np.argsort(X["df"].toarray()[:,-1])] # sort matrix by original index
+		sparse_df = sparse_df[np.argsort(X["df"][:,-1])] # sort matrix by original index
 	else:
 		sparse_df = sparse.hstack([sparse.csr_matrix(df["correct"].values.reshape(-1,1)),
 			sparse.hstack([X[agent] for agent in active_features])]).tocsr()
